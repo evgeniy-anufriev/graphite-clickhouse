@@ -1,0 +1,29 @@
+name: Build
+
+env:
+  GOPATH: /home/runner/work/go
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0' # weekly
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.13','1.15', '1.16']
+    name: Build with go version ${{ matrix.go }}
+
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+      - uses: actions/checkout@v2
+      - name: Build
+        run: |
+          export PATH=$PATH:$GOPATH/bin
+          make tools all

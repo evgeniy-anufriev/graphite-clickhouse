@@ -1,0 +1,78 @@
+version: 2.1
+
+commands:
+  test:
+    description: "test module"
+    parameters:
+      working_directory:
+        type: string
+    steps:
+      - run:
+          command: go mod download
+          working_directory: << parameters.working_directory >>
+      - run:
+          command: golangci-lint run
+          working_directory: << parameters.working_directory >>
+      - run:
+          command: go test -v .
+          working_directory: << parameters.working_directory >>
+
+
+  gomod:
+    description: "check Go module"
+    parameters:
+      working_directory:
+        type: string
+    steps:
+      - run:
+          command: go mod tidy && git diff --exit-code
+          working_directory: << parameters.working_directory >>
+
+jobs:
+  build:
+    parameters:
+      golang_version:
+        type: string
+      check_modules:
+        type: boolean
+        default: false
+
+    docker:
+      - image: cimg/go:<< parameters.golang_version >>
+
+    environment:
+      GO111MODULE: "on"
+
+    steps:
+      - checkout
+      - run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+      - test:
+          working_directory: .
+      - when:
+          condition: << parameters.check_modules >>
+          steps:
+            - gomod:
+                working_directory: .
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build:
+          name: go1.19
+          golang_version: "1.19"
+          filters:
+            tags:
+              only: /.*/
+      - build:
+          name: go1.20
+          golang_version: "1.20"
+          filters:
+            tags:
+              only: /.*/
+      - build:
+          name: go1.21
+          golang_version: "1.21"
+          filters:
+            tags:
+              only: /.*/

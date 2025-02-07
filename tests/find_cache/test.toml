@@ -1,0 +1,186 @@
+[test]
+precision = "10s"
+
+[[test.clickhouse]]
+version = "24.2"
+dir = "tests/clickhouse/rollup"
+delay = "10s"
+
+[test.carbon_clickhouse]
+template = "carbon-clickhouse.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse-cached.conf.tpl"
+
+[[test.graphite_clickhouse]]
+template = "graphite-clickhouse-internal-aggr-cached.conf.tpl"
+
+##########################################################################
+[[test.input]]
+name = "test.cache"
+points = [{value = 1.0, time = "midnight-270s"}, {value = 3.0, time = "now"}]
+
+[[test.input]]
+name = "cache;scope=test"
+points = [{value = 2.0, time = "midnight-270s"}, {value = 4.0, time = "now"}]
+
+##########################################################################
+[[test.find_checks]]
+query = "test"
+cache_ttl = 120
+result = [{ path = "test", is_leaf = false }]
+
+[[test.find_checks]]
+query = "test.cache"
+cache_ttl = 120
+result = [{ path = "test.cache", is_leaf = true }]
+
+##########################################################################
+
+[[test.tags_checks]]
+query = "name;scope=test"
+cache_ttl = 120
+result = [
+    "cache",
+]
+
+##########################################################################
+# Short cache  TTL
+
+[[test.render_checks]]
+from = "rnow"
+until = "rnow+10"
+cache_ttl = 60
+targets = [ "test.cache" ]
+
+[[test.render_checks.result]]
+name = "test.cache"
+path = "test.cache"
+consolidation = "avg"
+start = "rnow"
+stop = "rnow+20"
+step = 10
+req_start = "rnow"
+req_stop = "rnow+20"
+values = [3.0, nan]
+
+# Already in find cache
+[[test.render_checks]]
+from = "rnow"
+until = "rnow+20"
+in_cache = true
+cache_ttl = 60
+targets = [ "test.cache" ]
+
+[[test.render_checks.result]]
+name = "test.cache"
+path = "test.cache"
+consolidation = "avg"
+start = "rnow"
+stop = "rnow+30"
+step = 10
+req_start = "rnow"
+req_stop = "rnow+30"
+values = [3.0, nan, nan]
+
+##########################################################################
+# Short cache  TTL
+
+[[test.render_checks]]
+from = "rnow"
+until = "rnow+10"
+cache_ttl = 60
+targets = [ 
+    "seriesByTag('scope=test')"
+]
+
+[[test.render_checks.result]]
+name = "cache;scope=test"
+path = "seriesByTag('scope=test')"
+consolidation = "avg"
+start = "rnow"
+stop = "rnow+20"
+step = 10
+req_start = "rnow"
+req_stop = "rnow+20"
+values = [4.0, nan]
+
+# Already in find cache
+[[test.render_checks]]
+from = "rnow"
+until = "rnow+20"
+in_cache = true
+cache_ttl = 60
+targets = [ 
+    "seriesByTag('scope=test')"
+]
+
+[[test.render_checks.result]]
+name = "cache;scope=test"
+path = "seriesByTag('scope=test')"
+consolidation = "avg"
+start = "rnow"
+stop = "rnow+30"
+step = 10
+req_start = "rnow"
+req_stop = "rnow+30"
+values = [4.0, nan, nan]
+
+##########################################################################
+# Default cache  TTL
+
+[[test.render_checks]]
+from = "midnight-270s"
+until = "midnight-20s"
+cache_ttl = 300
+targets = [ "test.cache" ]
+
+[[test.render_checks.result]]
+name = "test.cache"
+path = "test.cache"
+consolidation = "avg"
+start = "midnight-270s"
+stop = "midnight-10s"
+step = 10
+req_start = "midnight-270s"
+req_stop = "midnight-10s"
+values = [1.0, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+
+# Already in find cache
+[[test.render_checks]]
+from = "midnight-270s"
+until = "midnight-10s"
+in_cache = true
+cache_ttl = 300
+targets = [ "test.cache" ]
+
+[[test.render_checks.result]]
+name = "test.cache"
+path = "test.cache"
+consolidation = "avg"
+start = "midnight-270s"
+stop = "midnight"
+step = 10
+req_start = "midnight-270s"
+req_stop = "midnight"
+values = [1.0, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+
+# Fetch points from 2 days, not in cache
+[[test.render_checks]]
+from = "midnight-270s"
+until = "midnight"
+cache_ttl = 300
+targets = [ "test.cache" ]
+
+[[test.render_checks.result]]
+name = "test.cache"
+path = "test.cache"
+consolidation = "avg"
+start = "midnight-270s"
+stop = "midnight+10s"
+step = 10
+req_start = "midnight-270s"
+req_stop = "midnight+10s"
+values = [1.0, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+
+##########################################################################
